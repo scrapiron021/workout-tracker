@@ -171,9 +171,17 @@
       </div>
       <input type="file" id="import-file" accept=".json,application/json" hidden>
     </div>
+
+    <h2 class="section-label">Apple Health import</h2>
+    <div class="card">
+      <p class="muted import-note">In the Health app: tap your profile picture → Export All Health Data → save and unzip in Files → import the <strong>export.xml</strong> inside. Weight and waist entries get added to your chart; days you've already logged here are kept as-is.</p>
+      <button id="health-import" class="primary-btn">Import export.xml</button>
+      <input type="file" id="health-file" accept=".xml,text/xml,application/xml" hidden>
+      <p id="health-status" class="muted import-note" style="margin-top:12px" hidden></p>
+    </div>
   </section>
 
-  <p class="version">v3</p>
+  <p class="version">v4</p>
 </main>
 
 <!-- ===== REST TIMER ===== -->

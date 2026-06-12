@@ -1069,6 +1069,129 @@ document.getElementById('import-file').addEventListener('change', e => {
   reader.readAsText(file);
 });
 
+/* ===================== APPLE HEALTH IMPORT ===================== */
+
+const KG_TO_LB = 2.2046226218;
+const CM_TO_IN = 1 / 2.54;
+
+function healthAttr(tag, name) {
+  const m = tag.match(new RegExp(name + '="([^"]*)"'));
+  return m ? m[1] : null;
+}
+
+// Streams through export.xml in chunks so a multi-hundred-MB Health export
+// doesn't have to fit in memory. Keeps the newest sample per calendar day.
+async function importHealthFile(file, chunkSize = 4 * 1024 * 1024, onProgress = null) {
+  const weightByDate = new Map(); // date -> { ts, lbs }
+  const waistByDate = new Map();  // date -> { ts, inches }
+  const recordRe = /<Record[^>]*type="HKQuantityTypeIdentifier(BodyMass|WaistCircumference)"[^>]*>/g;
+
+  const processText = text => {
+    let m;
+    while ((m = recordRe.exec(text)) !== null) {
+      const tag = m[0];
+      const kind = m[1];
+      const value = parseFloat(healthAttr(tag, 'value'));
+      const start = healthAttr(tag, 'startDate') || '';
+      const unit = (healthAttr(tag, 'unit') || '').toLowerCase();
+      if (!isFinite(value) || value <= 0 || start.length < 10) continue;
+      const date = start.slice(0, 10);
+      if (kind === 'BodyMass') {
+        let lbs = value;
+        if (unit.startsWith('kg')) lbs = value * KG_TO_LB;
+        else if (unit === 'g') lbs = (value / 1000) * KG_TO_LB;
+        else if (unit === 'st') lbs = value * 14;
+        const prev = weightByDate.get(date);
+        if (!prev || start > prev.ts) weightByDate.set(date, { ts: start, lbs });
+      } else {
+        let inches = value;
+        if (unit.startsWith('cm')) inches = value * CM_TO_IN;
+        else if (unit === 'm') inches = value * 100 * CM_TO_IN;
+        const prev = waistByDate.get(date);
+        if (!prev || start > prev.ts) waistByDate.set(date, { ts: start, inches });
+      }
+    }
+  };
+
+  const decoder = new TextDecoder();
+  let buf = '';
+  for (let off = 0; off < file.size; off += chunkSize) {
+    const ab = await file.slice(off, off + chunkSize).arrayBuffer();
+    buf += decoder.decode(ab, { stream: true });
+    // process complete lines; a '>' boundary is the fallback for unbroken text
+    let cut = buf.lastIndexOf('\n');
+    if (cut < 0) cut = buf.lastIndexOf('>');
+    if (cut >= 0) {
+      processText(buf.slice(0, cut + 1));
+      buf = buf.slice(cut + 1);
+    }
+    if (onProgress) {
+      onProgress(Math.min(100, Math.round(((off + chunkSize) / file.size) * 100)));
+      await new Promise(r => setTimeout(r, 0)); // let the UI breathe
+    }
+  }
+  buf += decoder.decode();
+  processText(buf);
+
+  // merge — entries already logged in the app always win
+  let added = 0;
+  let skipped = 0;
+  let waistAdded = 0;
+  const existingDates = new Set(data.weight.entries.map(e => e.date));
+  for (const date of [...weightByDate.keys()].sort()) {
+    if (existingDates.has(date)) { skipped++; continue; }
+    data.weight.entries.push({
+      id: uid(), date,
+      lbs: Math.round(weightByDate.get(date).lbs * 10) / 10,
+      waist: null,
+    });
+    added++;
+  }
+  for (const [date, w] of waistByDate) {
+    const entry = data.weight.entries.find(e => e.date === date);
+    if (entry && entry.waist == null) {
+      entry.waist = Math.round(w.inches * 10) / 10;
+      waistAdded++;
+    }
+  }
+  if (added > 0 || waistAdded > 0) save();
+  return { found: weightByDate.size, added, skipped, waistAdded };
+}
+
+document.getElementById('health-import').addEventListener('click', () => {
+  document.getElementById('health-file').click();
+});
+
+document.getElementById('health-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const btn = document.getElementById('health-import');
+  const status = document.getElementById('health-status');
+  status.hidden = false;
+  status.textContent = 'Reading…';
+  btn.disabled = true;
+  try {
+    const res = await importHealthFile(file, undefined, pct => {
+      status.textContent = `Reading… ${pct}%`;
+    });
+    if (res.found === 0) {
+      status.textContent = 'No weight records found — make sure you picked the export.xml from inside the Health export (not the zip itself).';
+    } else {
+      const bits = [`Imported ${res.added} weigh-in${res.added === 1 ? '' : 's'}`];
+      if (res.waistAdded > 0) bits.push(`${res.waistAdded} waist measurement${res.waistAdded === 1 ? '' : 's'}`);
+      let msg = bits.join(' and ');
+      if (res.skipped > 0) msg += ` · ${res.skipped} day${res.skipped === 1 ? '' : 's'} already logged here (kept yours)`;
+      status.textContent = msg + '.';
+      renderWeight();
+    }
+  } catch (err) {
+    status.textContent = `Import failed: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 /* ===================== Init ===================== */
 
 // offline support + installability (no-op when opened from file://)
