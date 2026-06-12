@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Workout Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Workouts">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<main id="app">
+
+  <!-- ===== LIFT ===== -->
+  <section id="tab-lift" class="tab">
+    <header class="tab-header">
+      <h1>Lift</h1>
+      <p id="lift-suggestion" class="subtitle"></p>
+    </header>
+
+    <div class="day-picker" role="group" aria-label="Choose workout day">
+      <button id="pick-A" class="day-btn">Day A</button>
+      <button id="pick-B" class="day-btn">Day B</button>
+    </div>
+
+    <div id="exercise-list"></div>
+
+    <h2 class="section-label">Optional add-ons (either day)</h2>
+    <div id="addon-list"></div>
+  </section>
+
+  <!-- ===== CARDIO ===== -->
+  <section id="tab-cardio" class="tab" hidden>
+    <header class="tab-header"><h1>Cardio</h1></header>
+
+    <div class="card">
+      <div class="entry-title" id="cardio-week-title"></div>
+      <div class="mini-track"><div id="cardio-week-bar" class="mini-fill"></div></div>
+      <div class="entry-sub" id="cardio-week-sub"></div>
+    </div>
+
+    <div class="card">
+      <label class="field">Date
+        <input type="date" id="cardio-date">
+      </label>
+      <label class="field">Type
+        <select id="cardio-type">
+          <option>Elliptical – base</option>
+          <option>Incline walk – base</option>
+          <option>Walk/run intervals</option>
+          <option>Continuous jog</option>
+          <option>Mile time trial</option>
+        </select>
+      </label>
+      <div class="field-row">
+        <label class="field">Duration (min)
+          <input type="number" id="cardio-duration" inputmode="decimal" min="0" placeholder="30">
+        </label>
+        <label class="field">Distance (mi, optional)
+          <input type="number" id="cardio-distance" inputmode="decimal" min="0" step="0.01" placeholder="2.0">
+        </label>
+      </div>
+      <label class="field">Notes
+        <input type="text" id="cardio-notes" placeholder="How did it feel?">
+      </label>
+      <div class="btn-row">
+        <button id="cardio-add" class="primary-btn">Add cardio session</button>
+        <button id="cardio-cancel" class="secondary-btn" hidden>Cancel</button>
+      </div>
+    </div>
+
+    <h2 class="section-label">History</h2>
+    <div id="cardio-list"></div>
+  </section>
+
+  <!-- ===== MOBILITY ===== -->
+  <section id="tab-mobility" class="tab" hidden>
+    <header class="tab-header">
+      <h1>Mobility &amp; Core</h1>
+      <p id="mobility-progress" class="subtitle"></p>
+    </header>
+    <div id="mobility-list"></div>
+  </section>
+
+  <!-- ===== PROTEIN ===== -->
+  <section id="tab-protein" class="tab" hidden>
+    <header class="tab-header"><h1>Protein</h1></header>
+
+    <div class="card">
+      <div class="protein-status">
+        <span id="protein-today-total" class="big-number"></span>
+        <span id="protein-target-label" class="muted"></span>
+      </div>
+      <div class="progress-track"><div id="protein-bar" class="progress-fill"></div></div>
+      <p id="protein-remaining" class="remaining"></p>
+
+      <div class="protein-actions">
+        <button id="protein-shake" class="primary-btn">+30 g shake</button>
+        <div class="protein-custom">
+          <input type="number" id="protein-grams" inputmode="numeric" min="1" placeholder="grams">
+          <button id="protein-add" class="secondary-btn">Add</button>
+        </div>
+      </div>
+
+      <label class="field target-field">Daily target (g)
+        <input type="number" id="protein-target" inputmode="numeric" min="1">
+      </label>
+    </div>
+
+    <h2 class="section-label">Today's entries</h2>
+    <div id="protein-entries"></div>
+
+    <h2 class="section-label">Daily history</h2>
+    <div id="protein-history"></div>
+  </section>
+
+  <!-- ===== WEIGHT ===== -->
+  <section id="tab-weight" class="tab" hidden>
+    <header class="tab-header">
+      <h1>Bodyweight</h1>
+      <p class="subtitle">Watch the trend line — ignore any single day.</p>
+    </header>
+
+    <div class="card">
+      <div class="range-toggle" role="group" aria-label="Chart range">
+        <button data-range="30">30d</button>
+        <button data-range="90">90d</button>
+        <button data-range="all">All</button>
+      </div>
+      <div class="chart-wrap"><canvas id="weight-chart"></canvas></div>
+      <p id="chart-fallback" class="muted" hidden>Chart needs an internet connection the first time (it loads from a CDN). Your data is still saved below.</p>
+    </div>
+
+    <div class="card">
+      <div class="field-row">
+        <label class="field">Date
+          <input type="date" id="weight-date">
+        </label>
+        <label class="field">Weight (lb)
+          <input type="number" id="weight-lbs" inputmode="decimal" min="0" step="0.1" placeholder="300.0">
+        </label>
+      </div>
+      <label class="field">Waist (in, optional)
+        <input type="number" id="weight-waist" inputmode="decimal" min="0" step="0.1" placeholder="44.0">
+      </label>
+      <div class="btn-row">
+        <button id="weight-add" class="primary-btn">Log weight</button>
+        <button id="weight-cancel" class="secondary-btn" hidden>Cancel</button>
+      </div>
+      <label class="field target-field">Goal weight (lb)
+        <input type="number" id="weight-goal" inputmode="decimal" min="0">
+      </label>
+    </div>
+
+    <h2 class="section-label">Entries</h2>
+    <div id="weight-list"></div>
+
+    <h2 class="section-label">Data backup</h2>
+    <div class="card">
+      <p id="backup-stats" class="muted backup-stats"></p>
+      <div class="btn-row">
+        <button id="export-data" class="primary-btn">Export backup</button>
+        <button id="import-data" class="secondary-btn">Import</button>
+      </div>
+      <input type="file" id="import-file" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== REST TIMER ===== -->
+<div id="rest-timer" hidden>
+  <span id="rest-time"></span>
+  <button id="rest-close" aria-label="Dismiss rest timer">✕</button>
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav id="bottom-nav">
+  <button data-tab="lift" class="nav-btn active"><span class="nav-icon">🏋️</span>Lift</button>
+  <button data-tab="cardio" class="nav-btn"><span class="nav-icon">🏃</span>Cardio</button>
+  <button data-tab="mobility" class="nav-btn"><span class="nav-icon">🧘</span>Mobility</button>
+  <button data-tab="protein" class="nav-btn"><span class="nav-icon">🥩</span>Protein</button>
+  <button data-tab="weight" class="nav-btn"><span class="nav-icon">⚖️</span>Weight</button>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>
