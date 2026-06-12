@@ -1,7 +1,7 @@
 // Service worker: precache the app shell, network-first for app files
 // (so updates land immediately when online), cache-first for the CDN.
 
-const CACHE = 'workout-tracker-v1';
+const CACHE = 'workout-tracker-v2';
 
 const SHELL = [
   './',
@@ -16,9 +16,13 @@ const SHELL = [
 ];
 
 self.addEventListener('install', e => {
+  // 'no-cache' bypasses the HTTP cache (GitHub Pages caches files for 10 min),
+  // so a new service worker always precaches the freshly deployed files
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.addAll(SHELL))
+      .then(c => Promise.all(SHELL.map(url =>
+        fetch(new Request(url, { cache: 'no-cache' })).then(res => c.put(url, res))
+      )))
       .then(() => self.skipWaiting())
   );
 });
@@ -36,9 +40,10 @@ self.addEventListener('fetch', e => {
   const sameOrigin = new URL(e.request.url).origin === location.origin;
 
   if (sameOrigin) {
-    // network-first: fresh app files when online, cached copy offline
+    // network-first, revalidating with the server instead of trusting the
+    // HTTP cache — guarantees fresh app files whenever we're online
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: 'no-cache' })
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy));

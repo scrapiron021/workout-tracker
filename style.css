@@ -88,7 +88,11 @@ input, select {
 }
 
 input[type="date"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
+  overflow: hidden;
   text-align: left;
 }
 /* iOS centers the value text by default — keep it left like the other fields */
@@ -428,3 +432,4 @@ button {
 
 .empty-note { color: var(--muted); padding: 8px 4px; font-size: 0.92rem; }
 .backup-stats { margin: 0 0 12px; font-size: 0.92rem; }
+.version { text-align: center; color: var(--muted); font-size: 0.75rem; margin: 24px 0 0; }
