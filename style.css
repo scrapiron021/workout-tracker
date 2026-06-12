@@ -139,6 +139,55 @@ button {
   padding: 12px 18px;
 }
 
+/* ---------- backup banner ---------- */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 8px 0 12px;
+  font-size: 0.92rem;
+}
+.banner[hidden] { display: none; }
+.banner-btns { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.banner-btns .secondary-btn { min-height: 40px; padding: 8px 14px; }
+.banner-x {
+  background: transparent;
+  color: var(--muted);
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  font-size: 14px;
+}
+
+/* ---------- rest timer setting ---------- */
+.rest-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+.rest-btns { display: flex; gap: 6px; }
+.rest-pick {
+  min-height: 40px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.rest-pick.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ---------- day picker ---------- */
 .day-picker { display: flex; gap: 10px; margin-bottom: 14px; }
 .day-btn {
@@ -336,7 +385,15 @@ button {
 }
 .progress-fill.goal-met { background: var(--green); }
 .protein-actions { display: flex; flex-direction: column; gap: 10px; }
+.protein-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.protein-quick .primary-btn { flex: 1 1 45%; width: auto; min-width: 0; }
 .protein-custom { display: flex; gap: 8px; }
+.quick-editor-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.quick-editor-row span { flex: 1; }
+.quick-add-form { display: flex; gap: 8px; margin-top: 10px; }
+.quick-add-form input { min-width: 0; }
+.quick-add-form .name { flex: 2; }
+.quick-add-form .grams { flex: 1; }
 .protein-custom input { flex: 1; }
 .mini-track { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; margin-top: 6px; }
 .mini-fill { height: 100%; background: var(--accent); border-radius: 999px; }

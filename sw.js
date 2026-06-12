@@ -1,18 +1,18 @@
 // Service worker: precache the app shell, network-first for app files
 // (so updates land immediately when online), cache-first for the CDN.
 
-const CACHE = 'workout-tracker-v2';
+const CACHE = 'workout-tracker-v3';
 
 const SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './chart.umd.min.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js',
 ];
 
 self.addEventListener('install', e => {

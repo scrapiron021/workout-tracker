@@ -87,8 +87,13 @@ const DEFAULT_DATA = {
   sessions: [],                                  // { id, date, day, sets: { exId: [{ w, r }] } }
   cardio: [],                                    // { id, date, type, duration, distance, notes }
   mobility: {},                                  // { 'YYYY-MM-DD': { itemId: true } }
-  protein: { target: 200, entries: {} },         // entries: { 'YYYY-MM-DD': [{ id, g }] }
+  protein: {                                     // entries: { 'YYYY-MM-DD': [{ id, g }] }
+    target: 200,
+    quick: [{ id: 'q-shake', label: 'Shake', g: 30 }],
+    entries: {},
+  },
   weight: { goal: 280, range: 'all', entries: [] }, // entries: { id, date, lbs, waist }
+  settings: { restSeconds: 90 },
 };
 
 let data = loadData();
@@ -103,6 +108,7 @@ function loadData() {
       ...parsed,
       protein: { ...structuredClone(DEFAULT_DATA.protein), ...(parsed.protein || {}) },
       weight: { ...structuredClone(DEFAULT_DATA.weight), ...(parsed.weight || {}) },
+      settings: { ...structuredClone(DEFAULT_DATA.settings), ...(parsed.settings || {}) },
     };
   } catch {
     return structuredClone(DEFAULT_DATA);
@@ -157,6 +163,7 @@ function showTab(name) {
   });
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo(0, 0);
+  updateBackupBanner();
   if (name === 'lift') renderLift();
   if (name === 'cardio') renderCardio();
   if (name === 'mobility') renderMobility();
@@ -222,6 +229,9 @@ function renderLift() {
       : (d === sugg ? '<span class="hint">suggested</span>' : '');
     btn.innerHTML = `Day ${d}${hint}`;
   });
+
+  document.querySelectorAll('.rest-pick').forEach(b =>
+    b.classList.toggle('selected', Number(b.dataset.sec) === data.settings.restSeconds));
 
   const list = document.getElementById('exercise-list');
   list.innerHTML = '';
@@ -402,13 +412,12 @@ document.getElementById('pick-B').addEventListener('click', () => { chosenDay = 
 
 /* ===================== REST TIMER ===================== */
 
-const REST_SECONDS = 90;
 let restInterval = null;
 let restEnd = 0;
 let restHideTimeout = null;
 
 function startRestTimer() {
-  restEnd = Date.now() + REST_SECONDS * 1000;
+  restEnd = Date.now() + data.settings.restSeconds * 1000;
   const el = document.getElementById('rest-timer');
   el.hidden = false;
   el.classList.remove('done');
@@ -442,9 +451,25 @@ function hideRestTimer() {
 
 document.getElementById('rest-close').addEventListener('click', hideRestTimer);
 
+document.querySelectorAll('.rest-pick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    data.settings.restSeconds = Number(btn.dataset.sec);
+    save();
+    renderLift();
+  });
+});
+
 /* ===================== CARDIO ===================== */
 
 const CARDIO_WEEKLY_GOAL = 150; // minutes — standard public-health target
+
+// formats decimal minutes as m:ss (11.5 -> "11:30")
+function fmtMinSec(minutes) {
+  let m = Math.floor(minutes);
+  let s = Math.round((minutes - m) * 60);
+  if (s === 60) { m += 1; s = 0; }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 let editingCardioId = null;
 
@@ -471,6 +496,17 @@ function renderCardio() {
     `${thisWeek.length} session${thisWeek.length === 1 ? '' : 's'} · goal ${CARDIO_WEEKLY_GOAL} min/week` +
     (mins >= CARDIO_WEEKLY_GOAL ? ' · hit! ✅' : '');
 
+  // best mile time trial
+  const trials = data.cardio.filter(e => e.type === 'Mile time trial' && e.duration > 0);
+  const prEl = document.getElementById('cardio-pr');
+  if (trials.length > 0) {
+    const best = trials.reduce((a, b) => (b.duration < a.duration ? b : a));
+    prEl.hidden = false;
+    prEl.textContent = `Mile PR: ${fmtMinSec(best.duration)} (${fmtDate(best.date)}) 🏁`;
+  } else {
+    prEl.hidden = true;
+  }
+
   document.getElementById('cardio-add').textContent = editingCardioId ? 'Save changes' : 'Add cardio session';
   document.getElementById('cardio-cancel').hidden = !editingCardioId;
 
@@ -493,6 +529,7 @@ function renderCardio() {
     sub.className = 'entry-sub';
     const bits = [fmtDateYear(e.date)];
     if (e.distance) bits.push(`${e.distance} mi`);
+    if (e.distance > 0 && e.duration > 0) bits.push(`${fmtMinSec(e.duration / e.distance)} /mi`);
     if (e.notes) bits.push(e.notes);
     sub.textContent = bits.join(' · ');
     main.append(title, sub);
@@ -691,6 +728,8 @@ function renderProtein() {
   const targetInput = document.getElementById('protein-target');
   if (document.activeElement !== targetInput) targetInput.value = target;
 
+  renderProteinQuick();
+
   // today's entries
   const entriesDiv = document.getElementById('protein-entries');
   entriesDiv.innerHTML = '';
@@ -784,7 +823,73 @@ function renderProtein() {
   }
 }
 
-document.getElementById('protein-shake').addEventListener('click', () => addProtein(30));
+let editingQuickButtons = false;
+
+function renderProteinQuick() {
+  const quickDiv = document.getElementById('protein-quick');
+  quickDiv.innerHTML = '';
+  data.protein.quick.forEach(q => {
+    const b = document.createElement('button');
+    b.className = 'primary-btn';
+    b.textContent = `+${q.g} g ${q.label}`;
+    b.addEventListener('click', () => addProtein(q.g));
+    quickDiv.appendChild(b);
+  });
+
+  document.getElementById('protein-quick-edit').textContent =
+    editingQuickButtons ? 'Done editing' : 'Edit quick buttons';
+
+  const editor = document.getElementById('protein-quick-editor');
+  editor.hidden = !editingQuickButtons;
+  editor.innerHTML = '';
+  if (!editingQuickButtons) return;
+
+  data.protein.quick.forEach(q => {
+    const row = document.createElement('div');
+    row.className = 'quick-editor-row';
+    const label = document.createElement('span');
+    label.textContent = `${q.label} · ${q.g} g`;
+    row.append(label, deleteButton(() => {
+      data.protein.quick = data.protein.quick.filter(x => x.id !== q.id);
+      save();
+      renderProtein();
+    }));
+    editor.appendChild(row);
+  });
+
+  const form = document.createElement('div');
+  form.className = 'quick-add-form';
+  const nameInput = document.createElement('input');
+  nameInput.className = 'name';
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Name (e.g. Chicken)';
+  nameInput.maxLength = 20;
+  const gramsInput = document.createElement('input');
+  gramsInput.className = 'grams';
+  gramsInput.type = 'number';
+  gramsInput.inputMode = 'numeric';
+  gramsInput.min = '1';
+  gramsInput.placeholder = 'g';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'secondary-btn';
+  addBtn.textContent = 'Add';
+  addBtn.addEventListener('click', () => {
+    const label = nameInput.value.trim();
+    const g = Number(gramsInput.value);
+    if (!label || !g || g <= 0) return;
+    if (data.protein.quick.length >= 6) return; // keep the row tappable
+    data.protein.quick.push({ id: uid(), label, g });
+    save();
+    renderProtein();
+  });
+  form.append(nameInput, gramsInput, addBtn);
+  editor.appendChild(form);
+}
+
+document.getElementById('protein-quick-edit').addEventListener('click', () => {
+  editingQuickButtons = !editingQuickButtons;
+  renderProtein();
+});
 
 document.getElementById('protein-add').addEventListener('click', () => {
   const input = document.getElementById('protein-grams');
@@ -912,6 +1017,8 @@ function drawWeightChart() {
   const weights = entries.map(e => e.lbs);
   const trend = movingAverage(weights, 7);
   const goal = data.weight.goal;
+  const waists = entries.map(e => e.waist ?? null);
+  const hasWaist = waists.some(v => v != null);
 
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const tickColor = dark ? '#9aa4af' : '#65707c';
@@ -950,6 +1057,17 @@ function drawWeightChart() {
           borderWidth: 2,
           pointRadius: 0,
         },
+        ...(hasWaist ? [{
+          label: 'Waist (in)',
+          data: waists,
+          borderColor: '#f59e0b',
+          backgroundColor: '#f59e0b',
+          borderWidth: 2,
+          pointRadius: 2,
+          spanGaps: true,
+          tension: 0.3,
+          yAxisID: 'y1',
+        }] : []),
       ],
     },
     options: {
@@ -962,6 +1080,13 @@ function drawWeightChart() {
       scales: {
         y: { ticks: { font: { size: 11 }, color: tickColor }, grid: { color: gridColor } },
         x: { ticks: { font: { size: 10 }, maxTicksLimit: 8, color: tickColor }, grid: { color: gridColor } },
+        ...(hasWaist ? {
+          y1: {
+            position: 'right',
+            ticks: { font: { size: 11 }, color: '#f59e0b' },
+            grid: { drawOnChartArea: false },
+          },
+        } : {}),
       },
     },
   });
@@ -1008,6 +1133,9 @@ function renderBackupStats() {
     `${weighIns} weigh-in${weighIns === 1 ? '' : 's'}, ${proteinDays} protein day${proteinDays === 1 ? '' : 's'}.`;
 }
 
+const LAST_EXPORT_KEY = 'wt-last-export';
+const BACKUP_SNOOZE_KEY = 'wt-backup-snooze';
+
 document.getElementById('export-data').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -1018,6 +1146,37 @@ document.getElementById('export-data').addEventListener('click', () => {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  localStorage.setItem(LAST_EXPORT_KEY, todayStr());
+  updateBackupBanner();
+});
+
+function updateBackupBanner() {
+  const banner = document.getElementById('backup-banner');
+  const totalEntries = data.sessions.length + data.cardio.length +
+    data.weight.entries.length + Object.keys(data.protein.entries).length;
+  const lastExport = localStorage.getItem(LAST_EXPORT_KEY);
+  const snoozedUntil = localStorage.getItem(BACKUP_SNOOZE_KEY);
+
+  let show = totalEntries >= 5; // nothing worth nagging about before that
+  if (show && lastExport && lastExport > daysAgoStr(30)) show = false;
+  if (show && snoozedUntil && snoozedUntil >= todayStr()) show = false;
+
+  banner.hidden = !show;
+  if (show) {
+    document.getElementById('backup-banner-text').textContent = lastExport
+      ? `Last backup ${fmtDate(lastExport)} — time for a fresh one.`
+      : 'Your data has never been backed up.';
+  }
+}
+
+document.getElementById('backup-banner-go').addEventListener('click', () => {
+  showTab('weight');
+  document.getElementById('export-data').scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+document.getElementById('backup-banner-snooze').addEventListener('click', () => {
+  localStorage.setItem(BACKUP_SNOOZE_KEY, daysAgoStr(-7)); // a week from now
+  updateBackupBanner();
 });
 
 function importData(parsed) {
@@ -1032,6 +1191,7 @@ function importData(parsed) {
     ...parsed,
     protein: { ...structuredClone(DEFAULT_DATA.protein), ...parsed.protein },
     weight: { ...structuredClone(DEFAULT_DATA.weight), ...parsed.weight },
+    settings: { ...structuredClone(DEFAULT_DATA.settings), ...(parsed.settings || {}) },
   };
   save();
   chosenDay = null;

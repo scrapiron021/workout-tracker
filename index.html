@@ -12,13 +12,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Workouts">
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
-        integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
-        crossorigin="anonymous"></script>
+<script src="chart.umd.min.js"></script>
 </head>
 <body>
 
 <main id="app">
+
+  <div id="backup-banner" class="banner" hidden>
+    <span id="backup-banner-text"></span>
+    <div class="banner-btns">
+      <button id="backup-banner-go" class="secondary-btn">Export</button>
+      <button id="backup-banner-snooze" class="banner-x" aria-label="Snooze reminder for a week">✕</button>
+    </div>
+  </div>
 
   <!-- ===== LIFT ===== -->
   <section id="tab-lift" class="tab">
@@ -30,6 +36,15 @@
     <div class="day-picker" role="group" aria-label="Choose workout day">
       <button id="pick-A" class="day-btn">Day A</button>
       <button id="pick-B" class="day-btn">Day B</button>
+    </div>
+
+    <div class="rest-setting">
+      <span class="muted">Rest timer</span>
+      <div class="rest-btns" role="group" aria-label="Rest timer length">
+        <button class="rest-pick" data-sec="60">60s</button>
+        <button class="rest-pick" data-sec="90">90s</button>
+        <button class="rest-pick" data-sec="120">120s</button>
+      </div>
     </div>
 
     <div id="exercise-list"></div>
@@ -46,6 +61,7 @@
       <div class="entry-title" id="cardio-week-title"></div>
       <div class="mini-track"><div id="cardio-week-bar" class="mini-fill"></div></div>
       <div class="entry-sub" id="cardio-week-sub"></div>
+      <div class="entry-sub" id="cardio-pr" hidden></div>
     </div>
 
     <div class="card">
@@ -104,12 +120,14 @@
       <p id="protein-remaining" class="remaining"></p>
 
       <div class="protein-actions">
-        <button id="protein-shake" class="primary-btn">+30 g shake</button>
+        <div id="protein-quick" class="protein-quick"></div>
         <div class="protein-custom">
           <input type="number" id="protein-grams" inputmode="numeric" min="1" placeholder="grams">
           <button id="protein-add" class="secondary-btn">Add</button>
         </div>
       </div>
+      <button id="protein-quick-edit" class="hist-toggle">Edit quick buttons</button>
+      <div id="protein-quick-editor" hidden></div>
 
       <label class="field target-field">Daily target (g)
         <input type="number" id="protein-target" inputmode="numeric" min="1">
@@ -183,7 +201,7 @@
     </div>
   </section>
 
-  <p class="version">v5</p>
+  <p class="version">v6</p>
 </main>
 
 <!-- ===== REST TIMER ===== -->
