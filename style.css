@@ -87,6 +87,25 @@ input, select {
   color: var(--text);
 }
 
+input[type="date"] {
+  max-width: 100%;
+  text-align: left;
+}
+/* iOS centers the value text by default — keep it left like the other fields */
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+/* iOS Safari only: the native date-input appearance enforces its own width,
+   overflowing the card — strip it so the input sizes like a normal field */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+  }
+}
+
 .field { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--muted); }
 .field input, .field select { margin-top: 4px; }
 .field-row { display: flex; gap: 10px; }
